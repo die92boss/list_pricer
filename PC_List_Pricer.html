@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PC Component List</title>
+     <script src="https://cdn.tailwindcss.com"></script>
+     <script>tailwind.config = { darkMode: 'class' }</script>
+     <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+     <style>
+         /* Styles remain the same as the previous version */
+         body, .bg-white, .bg-gray-100, .bg-gray-400, .bg-gray-500, .bg-gray-800, .bg-gray-900, .text-black, .text-white, .text-gray-700, .text-gray-300, .border-gray-300, .border-gray-700 { transition: background-color 0.3s ease-in-out, color 0.3s ease-in-out, border-color 0.3s ease-in-out; }
+         *:focus-visible { outline: 2px solid transparent; outline-offset: 2px; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5); }
+         html.dark *:focus-visible { box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.5); }
+         li button:focus-visible { box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.5); }
+         html.dark li button:focus-visible { box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.5); }
+         header button:focus-visible { box-shadow: 0 0 0 3px rgba(160, 160, 160, 0.5); }
+         html.dark header button:focus-visible { box-shadow: 0 0 0 3px rgba(100, 116, 139, 0.6); }
+         .inline-flex > button:focus-visible { z-index: 10; }
+         .inline-flex > button:first-child:focus-visible { box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.5); }
+         .inline-flex > button:last-child:focus-visible { box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.5); }
+         .export-menu-item:focus-visible { background-color: rgba(239, 246, 255, 1); box-shadow: none; }
+         html.dark .export-menu-item:focus-visible { background-color: rgba(30, 41, 59, 1); box-shadow: none; }
+     </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 font-sans">
+
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+
+        function App() {
+            // State variables (items, inputs, dark mode, export state)
+            const [items, setItems] = useState([]);
+            const [itemName, setItemName] = useState('');
+            const [itemPrice, setItemPrice] = useState('');
+            const [priceError, setPriceError] = useState('');
+            const [isDarkMode, setIsDarkMode] = useState(false);
+            const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+            const [selectedExportFormat, setSelectedExportFormat] = useState('txt');
+
+            // --- Dark Mode Effects ---
+            useEffect(() => {
+                 const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                  setIsDarkMode(prefersDark);
+                  const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+                  const handleChange = (e) => setIsDarkMode(e.matches);
+                  mediaQuery.addEventListener('change', handleChange);
+                  return () => mediaQuery.removeEventListener('change', handleChange);
+             }, []);
+              useEffect(() => {
+                 if (isDarkMode) { document.documentElement.classList.add('dark'); }
+                 else { document.documentElement.classList.remove('dark'); }
+             }, [isDarkMode]);
+
+             // --- Click Outside Dropdown Effect ---
+             useEffect(() => {
+                const handleClickOutside = (event) => {
+                     if (isExportMenuOpen && !event.target.closest('.relative.inline-block')) {
+                         setIsExportMenuOpen(false);
+                     }
+                 };
+                 if (isExportMenuOpen) { document.addEventListener('mousedown', handleClickOutside); }
+                 return () => { document.removeEventListener('mousedown', handleClickOutside); };
+             }, [isExportMenuOpen]);
+
+            const toggleDarkMode = () => setIsDarkMode(prev => !prev);
+
+            // --- Add/Remove Item Logic ---
+             const handleAddItem = (e) => {
+                e.preventDefault(); setPriceError('');
+                const priceNumber = parseFloat(itemPrice);
+                if (!itemName.trim()) { alert("Please enter an item name."); return; }
+                if (itemPrice.trim() === '' || isNaN(priceNumber) || priceNumber < 0) {
+                    setPriceError('Price must be a non-negative number.'); return;
+                }
+                const newItem = { id: Date.now(), name: itemName.trim(), price: priceNumber };
+                setItems(prev => [...prev, newItem]);
+                setItemName(''); setItemPrice('');
+              };
+             const handleRemoveItem = (id) => setItems(prev => prev.filter(item => item.id !== id));
+
+
+            // --- Export Logic (with Euro €) ---
+            const triggerExport = () => {
+                const format = selectedExportFormat;
+                let content = '', mimeType = '', filename = '';
+                const timestamp = new Date().toISOString().slice(0, 10);
+                 const escapeCsv = (str) => { if (typeof str !== 'string') str = String(str); if (str.includes(',') || str.includes('"') || str.includes('\n')) { return `"${str.replace(/"/g, '""')}"`; } return str; };
+
+                if (format === 'txt') {
+                    filename = `pc-build-${timestamp}.txt`; mimeType = 'text/plain;charset=utf-8;';
+                    content += `PC Component List (${timestamp})\n------------------------------------\n`;
+                    items.forEach(item => { content += `${item.name}: €${item.price.toFixed(2)}\n`; }); // <-- € here
+                    content += `------------------------------------\nTotal: €${totalPrice.toFixed(2)}\n`; // <-- € here
+                } else if (format === 'csv') {
+                    filename = `pc-build-${timestamp}.csv`; mimeType = 'text/csv;charset=utf-8;';
+                    content += 'Component,Price (€)\n'; // <-- € in header
+                    items.forEach(item => { content += `${escapeCsv(item.name)},${escapeCsv(item.price.toFixed(2))}\n`; });
+                    content += `\nTotal (€),${escapeCsv(totalPrice.toFixed(2))}\n`; // <-- € in total label
+                } else { return; }
+
+                const blob = new Blob([content], { type: mimeType }); const url = URL.createObjectURL(blob);
+                const link = document.createElement('a'); link.setAttribute('href', url); link.setAttribute('download', filename);
+                document.body.appendChild(link); link.click();
+                document.body.removeChild(link); URL.revokeObjectURL(url);
+            };
+
+            const handleFormatSelect = (format) => {
+                setSelectedExportFormat(format);
+                setIsExportMenuOpen(false);
+            };
+
+            const totalPrice = useMemo(() => items.reduce((sum, item) => sum + item.price, 0), [items]);
+
+            // --- JSX Structure (with Euro €) ---
+            return (
+                <div className="container mx-auto p-4 md:p-8 max-w-2xl">
+                    {/* Header */}
+                    <header className="flex justify-between items-center mb-6">
+                         <h1 className="text-2xl md:text-3xl font-bold text-blue-600 dark:text-blue-400">PC Build Pricer</h1>
+                         <button onClick={toggleDarkMode} className="p-2 rounded-md bg-gray-400 dark:bg-gray-700 hover:bg-gray-500 dark:hover:bg-gray-600 transition-colors duration-150 focus:outline-none" title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}>
+                             {isDarkMode ? ( <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-5 w-5 text-white"><path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z" /></svg> ) : ( <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-5 w-5 text-white"><path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z" /></svg> )}
+                         </button>
+                    </header>
+
+                    {/* Input Form */}
+                    <form onSubmit={handleAddItem} className="mb-8 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md">
+                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                             <div className="md:col-span-2">
+                                 <label htmlFor="itemName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Component / Item</label>
+                                 <input type="text" id="itemName" value={itemName} onChange={(e) => setItemName(e.target.value)} placeholder="e.g., CPU, Graphics Card" className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100" required />
+                             </div>
+                             <div>
+                                 {/* Updated label for price input */}
+                                 <label htmlFor="itemPrice" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Price (€)</label>
+                                 <input type="text" id="itemPrice" value={itemPrice} onChange={(e) => { setItemPrice(e.target.value); if(priceError) setPriceError(''); }} placeholder="e.g., 299.99" className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus-visible:ring-2 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${priceError ? 'border-red-500 dark:border-red-400 focus-visible:ring-red-500' : 'border-gray-300 dark:border-gray-600 focus-visible:ring-indigo-500'}`} required />
+                                 {priceError && <p className="text-red-500 dark:text-red-400 text-xs mt-1">{priceError}</p>}
+                             </div>
+                         </div>
+                         <button type="submit" className="w-full md:w-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500 dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus-visible:ring-offset-gray-800 transition-colors duration-150">Add Item</button>
+                    </form>
+
+                    {/* Item List */}
+                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 mb-6">
+                         <h2 className="text-xl font-semibold mb-4 border-b border-gray-200 dark:border-gray-700 pb-2">Your Components</h2>
+                         {items.length === 0 ? ( <p className="text-gray-500 dark:text-gray-400 text-center py-4">No items added yet.</p> ) : (
+                             <ul className="divide-y divide-gray-200 dark:divide-gray-700">
+                                 {items.map(item => (
+                                     <li key={item.id} className="flex justify-between items-center py-3 px-1 group hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-100">
+                                         <span className="font-medium text-gray-800 dark:text-gray-200 mr-2">{item.name}</span>
+                                         <div className="flex items-center space-x-3 flex-shrink-0">
+                                             {/* Updated currency for item price */}
+                                             <span className="text-gray-600 dark:text-gray-300">€{item.price.toFixed(2)}</span>
+                                             <button onClick={() => handleRemoveItem(item.id)} className="p-1 rounded-full text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-500 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-150 opacity-50 group-hover:opacity-100 focus:opacity-100 focus:outline-none" title="Remove Item">
+                                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                             </button>
+                                         </div>
+                                     </li>
+                                 ))}
+                             </ul>
+                         )}
+                    </div>
+
+                    {/* --- TOTAL PRICE & EXPORT SPLIT BUTTON CONTAINER (with Euro €) --- */}
+                    <div className="flex justify-between items-center mt-6 p-4 bg-green-100 dark:bg-green-900 rounded-md text-green-800 dark:text-green-200">
+                        {/* Total Price Display */}
+                        <div className="text-xl md:text-2xl font-bold">
+                            {/* Updated currency for total price */}
+                            Total: <span className="ml-2">€{totalPrice.toFixed(2)}</span>
+                        </div>
+                        {/* Export Split Button Group */}
+                        <div className="relative inline-block text-left">
+                            {/* ... (Export button structure remains the same) ... */}
+                            <div className="inline-flex rounded-md shadow-sm">
+                                <button type="button" onClick={triggerExport} className="relative inline-flex items-center px-4 py-2 rounded-l-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 focus:z-10 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-100 dark:focus-visible:ring-offset-gray-900 focus-visible:ring-indigo-500" title={`Export list as .${selectedExportFormat.toUpperCase()}`}> Export as .{selectedExportFormat.toUpperCase()} </button>
+                                <button type="button" onClick={() => setIsExportMenuOpen(!isExportMenuOpen)} className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-l-0 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 focus:z-10 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-100 dark:focus-visible:ring-offset-gray-900 focus-visible:ring-indigo-500" id="options-menu-button" aria-expanded={isExportMenuOpen} aria-haspopup="true" title="Select export format">
+                                    <span className="sr-only">Open options</span>
+                                    <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
+                                </button>
+                            </div>
+                            {isExportMenuOpen && (
+                                <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 focus:outline-none z-10" role="menu" aria-orientation="vertical" aria-labelledby="options-menu-button">
+                                    <div className="py-1" role="none">
+                                        <button onClick={() => handleFormatSelect('txt')} className={`export-menu-item w-full text-left block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none ${selectedExportFormat === 'txt' ? 'font-semibold text-indigo-600 dark:text-indigo-400' : 'text-gray-700 dark:text-gray-200'}`} role="menuitem">Format: .TXT</button>
+                                        <button onClick={() => handleFormatSelect('csv')} className={`export-menu-item w-full text-left block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none ${selectedExportFormat === 'csv' ? 'font-semibold text-indigo-600 dark:text-indigo-400' : 'text-gray-700 dark:text-gray-200'}`} role="menuitem">Format: .CSV</button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                    {/* --- END TOTAL & EXPORT --- */}
+
+                </div> // End container div
+            );
+        }
+
+        // --- Render App ---
+        const container = document.getElementById('root');
+        const root = ReactDOM.createRoot(container);
+        root.render(<App />);
+    </script>
+
+</body>
+</html>
